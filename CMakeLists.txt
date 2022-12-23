@@ -1,102 +1,75 @@
+cmake_minimum_required(VERSION 3.0)
 # CMake project definition file.
 project(libgme)
 
-include (CheckCXXCompilerFlag)
+include(CheckCSourceCompiles)
+include(CheckCXXCompilerFlag)
+include(CMakePushCheckState)
+include(GNUInstallDirs)
 
-# When version is changed, also change the one in gme/gme.h to match
-set(GME_VERSION 0.6.3 CACHE INTERNAL "libgme Version")
-
-# 2.6+ always assumes FATAL_ERROR, but 2.4 and below don't.
-# Of course, 2.4 might work, in which case you're welcome to drop
-# down the requirement, but I can't test that.
-cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+file(READ "gme/gme.h" GME_GME_H)
+string(REGEX MATCH "/\\* Game_Music_Emu ([0-9]+)\\.([0-9]+).([0-9]+) \\*/" RE_GME_VERSION "${GME_GME_H}")
+if(NOT RE_GME_VERSION)
+    message(FATAL_ERROR "Unable to extract gme version from gme/gme.h")
+endif()
+set(GME_VERSION_MAJOR "${CMAKE_MATCH_1}")
+set(GME_VERSION_MINOR "${CMAKE_MATCH_2}")
+set(GME_VERSION_PATCH "${CMAKE_MATCH_3}")
+set(GME_VERSION "${GME_VERSION_MAJOR}.${GME_VERSION_MINOR}.${GME_VERSION_PATCH}")
 
 # Default emulators to build (all of them! ;)
-if (NOT DEFINED USE_GME_AY)
-    SET(USE_GME_AY 1 CACHE BOOL "Enable support for Spectrum ZX music emulation")
-endif()
+option(USE_GME_AY "Enable support for Spectrum ZX music emulation" ON)
+option(USE_GME_GBS "Enable support for Game Boy music emulation" ON)
+option(USE_GME_GYM "Enable Sega MegaDrive/Genesis music emulation" ON)
+option(USE_GME_HES "Enable PC Engine/TurboGrafx-16 music emulation" ON)
+option(USE_GME_KSS "Enable MSX or other Z80 systems music emulation" ON)
+option(USE_GME_NSF "Enable NES NSF music emulation" ON)
+option(USE_GME_NSFE "Enable NES NSFE and NSF music emulation" ON)
+option(USE_GME_SAP "Enable Atari SAP music emulation" ON)
+option(USE_GME_SPC "Enable SNES SPC music emulation" ON)
+option(USE_GME_VGM "Enable Sega VGM/VGZ music emulation" ON)
 
-if (NOT DEFINED USE_GME_GBS)
-    SET(USE_GME_GBS 1 CACHE BOOL "Enable support for Game Boy music emulation")
-endif()
+option(GME_SPC_ISOLATED_ECHO_BUFFER "Enable isolated echo buffer on SPC emulator to allow correct playing of \"dodgy\" SPC files made for various ROM hacks ran on ZSNES" OFF)
 
-if (NOT DEFINED USE_GME_GYM)
-    SET(USE_GME_GYM 1 CACHE BOOL "Enable Sega MegaDrive/Genesis music emulation")
-endif()
+set(GME_YM2612_EMU "Nuked" CACHE STRING "Which YM2612 emulator to use: \"Nuked\" (LGPLv2.1+), \"MAME\" (GPLv2+), or \"GENS\" (LGPLv2.1+)")
+set(GME_YM2612_EMU_CHOICES "Nuked;MAME;GENS")
+set_property(CACHE GME_YM2612_EMU PROPERTY STRINGS "${GME_YM2612_EMU_CHOICES}")
 
-if (NOT DEFINED USE_GME_HES)
-    SET(USE_GME_HES 1 CACHE BOOL "Enable PC Engine/TurboGrafx-16 music emulation")
-endif()
-
-if (NOT DEFINED USE_GME_KSS)
-    SET(USE_GME_KSS 1 CACHE BOOL "Enable MSX or other Z80 systems music emulation")
-endif()
-
-if (NOT DEFINED USE_GME_NSF)
-    SET(USE_GME_NSF 1 CACHE BOOL "Enable NES NSF music emulation")
-endif()
-
-if (NOT DEFINED USE_GME_NSFE)
-    SET(USE_GME_NSFE 1 CACHE BOOL "Enable NES NSFE and NSF music emulation")
-endif()
-
-if (NOT DEFINED USE_GME_SAP)
-    SET(USE_GME_SAP 1 CACHE BOOL "Enable Atari SAP music emulation")
-endif()
-
-if (NOT DEFINED USE_GME_SPC)
-    SET(USE_GME_SPC 1 CACHE BOOL "Enable SNES SPC music emulation")
-endif()
-
-if (NOT DEFINED GME_SPC_ISOLATED_ECHO_BUFFER)
-    option(GME_SPC_ISOLATED_ECHO_BUFFER "Enable isolated echo buffer on SPC emulator to allow correct playing of \"dodgy\" SPC files made for various ROM hacks ran on ZSNES" OFF)
-endif()
-
-if (NOT DEFINED USE_GME_VGM)
-    SET(USE_GME_VGM 1 CACHE BOOL "Enable Sega VGM/VGZ music emulation")
-endif()
-
-if (NOT DEFINED GME_YM2612_EMU)
-    SET(GME_YM2612_EMU "Nuked" CACHE STRING "Which YM2612 emulator to use: \"Nuked\" (LGPLv2.1+), \"MAME\" (GPLv2+), or \"GENS\" (LGPLv2.1+)")
-endif()
-
-if (USE_GME_NSFE AND NOT USE_GME_NSF)
-    MESSAGE(" -- NSFE support requires NSF, enabling NSF support. --")
-    SET(USE_GME_NSF 1 CACHE BOOL "Enable NES NSF music emulation" FORCE)
+if(USE_GME_NSFE AND NOT USE_GME_NSF)
+    message(STATUS "NSFE support requires NSF, enabling NSF support.")
+    set(USE_GME_NSF 1 CACHE BOOL "Enable NES NSF music emulation" FORCE)
 endif()
 
 option(BUILD_SHARED_LIBS "Build shared library (set to OFF for static library)" ON)
 
-option(ENABLE_UBSAN "Enable Undefined Behavior Sanitizer error-checking" ON)
+option(ENABLE_UBSAN "Enable Undefined Behavior Sanitizer error-checking" OFF)
 
 option(BUILD_FRAMEWORK "Build framework instead of dylib (on macOS)" OFF)
 
 # Check for GCC/Clang "visibility" support.
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-    OR
-    CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -W -Wextra")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -W -Wextra")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
     # Assume we have visibility support on any compiler that supports C++11
-    add_definitions (-DLIBGME_VISIBILITY)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
+    add_definitions(-DLIBGME_VISIBILITY)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
 
     # Try to protect against undefined behavior from signed integer overflow
     # This has caused miscompilation of code already and there are other
     # potential uses; see https://bitbucket.org/mpyne/game-music-emu/issues/18/
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fwrapv")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fwrapv")
 
-    if (ENABLE_UBSAN)
+    if(ENABLE_UBSAN)
         # GCC needs -static-libubsan
-        if (NOT BUILD_SHARED_LIBS AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined -static-libubsan")
+        if(NOT BUILD_SHARED_LIBS AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined -static-libubsan")
         else()
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
         endif()
     endif()
-endif ()
+endif()
 
 # Shared library defined here
 add_subdirectory(gme)
