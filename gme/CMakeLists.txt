@@ -237,7 +237,7 @@ if(APPLE)
 elseif(UNIX)
     set(gme_syms "{\n  global:\n")
     foreach(gme_export ${gme_exports})
-        set(gme_syms "${gme_syms}    ${GME_EXPORT};\n")
+        set(gme_syms "${gme_syms}    ${gme_export};\n")
     endforeach()
     set(gme_syms "${gme_syms}  local: *;\n};\n")
 
