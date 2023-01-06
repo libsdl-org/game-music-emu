@@ -14,7 +14,8 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/gme
 
 LOCAL_CFLAGS := -DVGM_YM2612_NUKED \
 	-DBLARGG_BUILD_DLL \
-	-DLIBGME_VISIBILITY
+	-DLIBGME_VISIBILITY \
+	-fvisibility=hidden
 
 LOCAL_CXXFLAGS := -std=c++11 \
 	-Wno-inconsistent-missing-override
