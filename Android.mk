@@ -13,9 +13,12 @@ LOCAL_CPP_FEATURES := exceptions
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/gme
 
 LOCAL_CFLAGS := -DVGM_YM2612_NUKED \
+	-DBLARGG_LITTLE_ENDIAN=1 \
 	-DBLARGG_BUILD_DLL \
 	-DLIBGME_VISIBILITY \
-	-fvisibility=hidden
+	-fwrapv \
+	-fvisibility=hidden \
+	-fvisibility-inlines-hidden
 
 LOCAL_CXXFLAGS := -std=c++11 \
 	-Wno-inconsistent-missing-override

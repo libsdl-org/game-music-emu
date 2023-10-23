@@ -18,16 +18,15 @@ set(libgme_SRCS Blip_Buffer.cpp
 # libraries.  Ensure CMake looks only for static libs if we're doing a static
 # build.  See https://stackoverflow.com/a/44738756
 if(NOT BUILD_SHARED_LIBS)
-    if(MSVC)
-        set(CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
-    else()
-        set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    endif()
+  if(MSVC)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
+  else()
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  endif()
 endif()
 
-option(GME_ZLIB "GME supports compressed sound formats" ON)
 if(GME_ZLIB)
-    find_package(ZLIB REQUIRED)
+    find_package(ZLIB QUIET)
 endif()
 
 # Ay_Apu is very popular around here
@@ -171,34 +170,88 @@ endif()
 # Add library to be compiled.
 add_library(gme ${libgme_SRCS})
 add_library(gme::gme ALIAS gme)
-target_include_directories(gme
-    PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"  # For gme_types.h
-    INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>"
-    INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-)
+
+set_property(TARGET gme PROPERTY C_VISIBILITY_PRESET "hidden")
+set_property(TARGET gme PROPERTY VISIBILITY_INLINES_HIDDEN TRUE)
+set_property(TARGET gme PROPERTY CXX_VISIBILITY_PRESET "hidden")
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_definitions(gme PRIVATE LIBGME_VISIBILITY)
+endif()
 
 # On some platforms we may need to change headers or whatnot based on whether
 # we're building the library or merely using the library. The following is
 # only defined when building the library to allow us to tell which is which.
 set_property(TARGET gme PROPERTY DEFINE_SYMBOL BLARGG_BUILD_DLL)
 
-if(GME_ZLIB)
-    message(STATUS "ZLib library located, compressed file formats will be supported")
-    target_compile_definitions(gme PRIVATE HAVE_ZLIB_H)
-    target_link_libraries(gme ZLIB::ZLIB)
-    # Is not to be installed though
+target_compile_definitions(gme PRIVATE GEN_TYPES_H)
+if(WORDS_BIGENDIAN)
+    target_compile_definitions(gme PRIVATE BLARGG_BIG_ENDIAN=1)
 else()
-    message(STATUS "ZLib library not found, disabling support for compressed formats such as VGZ")
+    target_compile_definitions(gme PRIVATE BLARGG_LITTLE_ENDIAN=1)
 endif()
 
+# Try to protect against undefined behavior from signed integer overflow
+# This has caused miscompilation of code already and there are other
+# potential uses; see https://bitbucket.org/mpyne/game-music-emu/issues/18/
+target_compile_options(gme PRIVATE -fwrapv)
+
+target_include_directories(gme
+    PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"  # For gen_types.h
+    INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>"
+    INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+)
+
+## FIXME: Properly find the C++ library !!!
+set(PC_LIBS -lstdc++)
+
 if(NOT MSVC)
-    cmake_push_check_state()
-    set(CMAKE_REQUIRED_FLAGS "-Wl,-no-undefined")
-    check_c_source_compiles("int main() { return 0;}" COMPILER_SUPPORTS_WL_NO_UNDEFINED)
-    cmake_pop_check_state()
-    if(COMPILER_SUPPORTS_WL_NO_UNDEFINED)
+    # Link with -no-undefined, if available
+    if(APPLE)
+      set_property(TARGET gme APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-undefined,error")
+    else()
+      cmake_push_check_state()
+      set(CMAKE_REQUIRED_FLAGS "-Wl,-no-undefined")
+      check_cxx_source_compiles("int main(void) { return 0;}" LINKER_SUPPORTS_NO_UNDEFINED)
+      cmake_pop_check_state()
+      if(LINKER_SUPPORTS_NO_UNDEFINED)
         set_property(TARGET gme APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-no-undefined")
+      endif()
     endif()
+
+    # Link to libm, if necessary
+    check_cxx_source_compiles("
+        #include <math.h>
+        int main(int argc, char** argv) {
+            return (int) pow(argc, 2.5);
+        }" LIBM_NOT_NEEDED)
+    if(NOT LIBM_NOT_NEEDED)
+        cmake_push_check_state()
+        set(CMAKE_REQUIRED_LIBRARIES "-lm")
+        check_cxx_source_compiles("
+            #include <math.h>
+            int main(int argc, char** argv) {
+                return (int) pow(argc, 2.5);
+            }" HAVE_LIBM)
+        cmake_pop_check_state()
+        if(HAVE_LIBM)
+            target_link_libraries(gme PRIVATE -lm)
+            list(APPEND PC_LIBS -lm) # for libgme.pc
+        endif()
+    endif()
+endif()
+
+if(GME_ZLIB)
+  if(ZLIB_FOUND)
+      message(STATUS "ZLib library located, compressed file formats will be supported")
+      target_compile_definitions(gme PRIVATE HAVE_ZLIB_H)
+      target_link_libraries(gme PRIVATE ZLIB::ZLIB)
+      # Is not to be installed though
+      list(APPEND PC_LIBS -lz) # for libgme.pc
+  else()
+      message(STATUS "** ZLib library not found, disabling support for compressed formats such as VGZ")
+  endif()
+else()
+  message(STATUS "Zlib-Compressed formats excluded")
 endif()
 
 # Extract symbols from gme.exports
@@ -242,10 +295,10 @@ elseif(UNIX)
 
     cmake_push_check_state()
     set(CMAKE_REQUIRED_FLAGS "-Wl,-version-script='${generated_sym_file}'")
-    check_c_source_compiles("int main() { return 0;}" COMPILER_SUPPORTS_VERSION_SCRIPT)
+    check_cxx_source_compiles("int main() { return 0;}" LINKER_SUPPORTS_VERSION_SCRIPT)
     cmake_pop_check_state()
 
-    if(COMPILER_SUPPORTS_VERSION_SCRIPT)
+    if(LINKER_SUPPORTS_VERSION_SCRIPT)
         set_property(TARGET gme APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-version-script='${generated_sym_file}'")
         set_property(TARGET gme APPEND PROPERTY LINK_DEPENDS "${generated_sym_file}")
     endif()
@@ -278,8 +331,8 @@ install(TARGETS gme LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 
 
 # Run during cmake phase, so this is available during make
-configure_file(gme_types.h.in gme_types.h @ONLY)
-
+configure_file(gme_types.h.in gen_types.h @ONLY)
+string(JOIN " " PC_LIBS ${PC_LIBS})
 configure_file(libgme.pc.in libgme.pc @ONLY)
 
 install(FILES ${EXPORTED_HEADERS} DESTINATION include/gme)

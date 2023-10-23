@@ -19,36 +19,12 @@
 
 // BLARGG_BIG_ENDIAN, BLARGG_LITTLE_ENDIAN: Determined automatically, otherwise only
 // one may be #defined to 1. Only needed if something actually depends on byte order.
-#if !defined (BLARGG_BIG_ENDIAN) && !defined (BLARGG_LITTLE_ENDIAN)
-#ifdef __GLIBC__
-	// GCC handles this for us
-	#include <endian.h>
-	#if __BYTE_ORDER == __LITTLE_ENDIAN
-		#define BLARGG_LITTLE_ENDIAN 1
-	#elif __BYTE_ORDER == __BIG_ENDIAN
-		#define BLARGG_BIG_ENDIAN 1
-	#endif
-#else
-
-#if defined (LSB_FIRST) || defined (__LITTLE_ENDIAN__) || BLARGG_CPU_X86 || \
-		(defined (LITTLE_ENDIAN) && LITTLE_ENDIAN+0 != 1234)
-	#define BLARGG_LITTLE_ENDIAN 1
+// BLARGG_BIG_ENDIAN or BLARGG_LITTLE_ENDIAN must be defined by the build system.
+#if !defined(BLARGG_BIG_ENDIAN) && !defined(BLARGG_LITTLE_ENDIAN)
+	#error Unspecified endianness.
 #endif
-
-#if defined (MSB_FIRST)     || defined (__BIG_ENDIAN__) || defined (WORDS_BIGENDIAN) || \
-	defined (__sparc__)     ||  BLARGG_CPU_POWERPC || \
-	(defined (BIG_ENDIAN) && BIG_ENDIAN+0 != 4321)
-	#define BLARGG_BIG_ENDIAN 1
-#elif !defined (__mips__)
-	// No endian specified; assume little-endian, since it's most common
-	#define BLARGG_LITTLE_ENDIAN 1
-#endif
-#endif
-#endif
-
-#if BLARGG_LITTLE_ENDIAN && BLARGG_BIG_ENDIAN
-	#undef BLARGG_LITTLE_ENDIAN
-	#undef BLARGG_BIG_ENDIAN
+#if defined(BLARGG_BIG_ENDIAN) && defined(BLARGG_LITTLE_ENDIAN)
+	#error BLARGG_LITTLE_ENDIAN and BLARGG_BIG_ENDIAN are both defined.
 #endif
 
 inline void blargg_verify_byte_order()

@@ -1,11 +1,12 @@
-cmake_minimum_required(VERSION 3.0...3.5)
 # CMake project definition file.
+cmake_minimum_required(VERSION 3.3...3.5)
 project(libgme)
 
-include(CheckCSourceCompiles)
-include(CheckCXXCompilerFlag)
 include(CMakePushCheckState)
+include(CheckCXXSourceCompiles)
+include(TestBigEndian)
 include(GNUInstallDirs)
+include(CTest)
 
 file(READ "gme/gme.h" GME_GME_H)
 string(REGEX MATCH "/\\* Game_Music_Emu ([0-9]+)\\.([0-9]+).([0-9]+) \\*/" RE_GME_VERSION "${GME_GME_H}")
@@ -30,6 +31,7 @@ option(USE_GME_SPC "Enable SNES SPC music emulation" ON)
 option(USE_GME_VGM "Enable Sega VGM/VGZ music emulation" ON)
 
 option(GME_SPC_ISOLATED_ECHO_BUFFER "Enable isolated echo buffer on SPC emulator to allow correct playing of \"dodgy\" SPC files made for various ROM hacks ran on ZSNES" OFF)
+option(GME_ZLIB "Enable GME to support compressed sound formats" ON)
 
 set(GME_YM2612_EMU "Nuked" CACHE STRING "Which YM2612 emulator to use: \"Nuked\" (LGPLv2.1+), \"MAME\" (GPLv2+), or \"GENS\" (LGPLv2.1+)")
 set(GME_YM2612_EMU_CHOICES "Nuked;MAME;GENS")
@@ -41,33 +43,30 @@ if(USE_GME_NSFE AND NOT USE_GME_NSF)
 endif()
 
 option(BUILD_SHARED_LIBS "Build shared library (set to OFF for static library)" ON)
+option(BUILD_FRAMEWORK "Build framework instead of dylib on macOS" OFF)
 
 option(ENABLE_UBSAN "Enable Undefined Behavior Sanitizer error-checking" OFF)
 
-option(BUILD_FRAMEWORK "Build framework instead of dylib (on macOS)" OFF)
+
+set (CMAKE_CXX_STANDARD  11)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+set (CMAKE_CXX_EXTENSIONS OFF)
+
+test_big_endian(WORDS_BIGENDIAN)
+
+if(MSVC)
+    add_compile_options(/W2)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-Wall -W -Wextra)
+endif()
 
 # Check for GCC/Clang "visibility" support.
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -W -Wextra")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-
-    # Assume we have visibility support on any compiler that supports C++11
-    add_definitions(-DLIBGME_VISIBILITY)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
-
-    # Try to protect against undefined behavior from signed integer overflow
-    # This has caused miscompilation of code already and there are other
-    # potential uses; see https://bitbucket.org/mpyne/game-music-emu/issues/18/
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fwrapv")
-
-    if(ENABLE_UBSAN)
-        # GCC needs -static-libubsan
-        if(NOT BUILD_SHARED_LIBS AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined -static-libubsan")
-        else()
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
-        endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND ENABLE_UBSAN)
+    # GCC needs -static-libubsan
+    if(NOT BUILD_SHARED_LIBS AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined -static-libubsan")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
     endif()
 endif()
 
