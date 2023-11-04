@@ -1,5 +1,5 @@
 # CMake project definition file.
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.3...3.5)
 project(libgme)
 
 include(CMakePushCheckState)
