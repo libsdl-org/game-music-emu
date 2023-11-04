@@ -36,7 +36,6 @@ jobs:
         cmake --build .
         cmake --build . --target demo
         cmake --build . --target demo_mem
-        cmake --build . --target demo_multi
         cmake --build . --target gme_player
     - name: Build Static
       run: |
@@ -46,5 +45,4 @@ jobs:
         cmake --build .
         cmake --build . --target demo
         cmake --build . --target demo_mem
-        cmake --build . --target demo_multi
         cmake --build . --target gme_player
