@@ -88,6 +88,8 @@ LOCAL_SRC_FILES := \
 	gme/Vgm_Emu_Impl.cpp \
 	gme/Ym2413_Emu.cpp \
 	gme/Ym2612_Nuked.cpp \
+	gme/Ym2612_GENS.cpp \
+	gme/Ym2612_MAME.cpp \
 	gme/gme.cpp
 
 LOCAL_EXPORT_C_INCLUDES = $(LOCAL_PATH)
