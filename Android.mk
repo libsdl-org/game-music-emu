@@ -1,6 +1,6 @@
-# Android build of game-music-emu for SDL_mixer
-
-# (Don't forgot to set APP_STL=...)
+# Support for Android-based projects that use ndk-build instead of CMake
+#
+# (Don't forget to set APP_STL=...)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -9,21 +9,38 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libgme
 
 LOCAL_CPP_FEATURES := exceptions
+#LOCAL_SANITIZE := undefined
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/gme
 
-LOCAL_CFLAGS := -DVGM_YM2612_NUKED \
+# YM2612 emulator to use:
+# VGM_YM2612_NUKED: LGPLv2.1+
+# VGM_YM2612_MAME: GPLv2+
+# VGM_YM2612_GENS: LGPLv2.1+
+GME_YM2612_EMU=VGM_YM2612_NUKED
+
+# For zlib compressed formats:
+GME_ZLIB=N
+
+LOCAL_CFLAGS := -O2 -Wall \
 	-DBLARGG_LITTLE_ENDIAN=1 \
 	-DBLARGG_BUILD_DLL \
 	-DLIBGME_VISIBILITY \
 	-fwrapv \
 	-fvisibility=hidden \
+	-D$(GME_YM2612_EMU)
+
+ifeq ($(GME_ZLIB),Y)
+LOCAL_CFLAGS += -DHAVE_ZLIB_H
+endif
+
+LOCAL_CPPFLAGS := -std=c++11 \
 	-fvisibility-inlines-hidden
 
-LOCAL_CXXFLAGS := -std=c++11 \
-	-Wno-inconsistent-missing-override
-
 LOCAL_LDFLAGS := -Wl,-no-undefined
+ifeq ($(GME_ZLIB),Y)
+LOCAL_LDFLAGS += -lz
+endif
 
 LOCAL_SRC_FILES := \
 	gme/Ay_Apu.cpp \
