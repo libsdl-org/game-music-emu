@@ -146,9 +146,9 @@ protected:
 	virtual blargg_err_t set_sample_rate_( long sample_rate ) = 0;
 	virtual void set_equalizer_( equalizer_t const& ) { }
 	virtual void enable_accuracy_( bool /* enable */ ) { }
-	virtual void mute_voices_( int mask ) = 0;
-	virtual void set_tempo_( double ) = 0;
-	virtual blargg_err_t start_track_( int ) = 0; // tempo is set before this
+	virtual void mute_voices_( int mask );
+	virtual void set_tempo_( double );
+	virtual blargg_err_t start_track_( int ); // tempo is set before this
 	virtual blargg_err_t play_( long count, sample_t* out ) = 0;
 	virtual blargg_err_t skip_( long count );
 protected:
