@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 // Number of audio buffers per second. Adjust if you encounter audio skipping.
 // Note that this sets the floor on how often you'll see changes to the audio
 // scope
-const int fill_rate = 80;
+static const int fill_rate = 80;
 
 // Simple sound driver using SDL
 typedef void (*sound_callback_t)( void* data, short* out, int count );

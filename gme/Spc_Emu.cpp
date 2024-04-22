@@ -41,7 +41,7 @@ Spc_Emu::~Spc_Emu() { }
 
 // Track info
 
-long const trailer_offset = 0x10200;
+static long const trailer_offset = 0x10200;
 
 byte const* Spc_Emu::trailer() const { return &file_data [min( file_size, trailer_offset )]; }
 

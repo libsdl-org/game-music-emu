@@ -15,8 +15,8 @@ L           Toggle track looping (infinite playback)
 // system header includes
 #define _ISOC99_SOURCE 1
 
-int const scope_width = 1024;
-int const scope_height = 512;
+static int const scope_width = 1024;
+static int const scope_height = 512;
 
 #include "Music_Player.h"
 #include "Audio_Scope.h"
@@ -26,14 +26,14 @@ int const scope_height = 512;
 #include <stdio.h>
 #include "SDL.h"
 
-void handle_error( const char* );
+static void handle_error( const char* );
 
 static bool paused;
 static Audio_Scope* scope;
 static Music_Player* player;
 static short scope_buf [scope_width * 2];
 
-static void init()
+static void init( void )
 {
 	// Start SDL
 	if ( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO ) < 0 )
@@ -211,7 +211,7 @@ int main( int argc, char** argv )
 	return 0;
 }
 
-void handle_error( const char* error )
+static void handle_error( const char* error )
 {
 	if ( error )
 	{

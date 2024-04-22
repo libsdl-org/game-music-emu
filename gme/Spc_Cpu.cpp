@@ -94,7 +94,7 @@ void Snes_Spc::enable_rom( int enable )
 //// DSP
 
 #if SPC_LESS_ACCURATE
-	int const max_reg_time = 29;
+	static int const max_reg_time = 29;
 
 	signed char const Snes_Spc::reg_times_ [256] =
 	{
@@ -288,7 +288,7 @@ static unsigned char const glitch_probs [3] [256] =
 // by compiler.
 
 // If write isn't preceded by read, data has this added to it
-int const no_read_before_write = 0x2000;
+static int const no_read_before_write = 0x2000;
 
 void Snes_Spc::cpu_write_smp_reg_( int data, rel_time_t time, uint16_t addr )
 {
@@ -519,7 +519,12 @@ uint8_t* Snes_Spc::run_until_( time_t end_time )\
 	return &REGS [r_cpuio0];\
 }
 
-int const cpu_lag_max = 12 - 1; // DIV YA,X takes 12 clocks
+#ifndef NDEBUG
+
+// Used only for assert
+static int const cpu_lag_max = 12 - 1; // DIV YA,X takes 12 clocks
+
+#endif
 
 void Snes_Spc::end_frame( time_t end_time )
 {
