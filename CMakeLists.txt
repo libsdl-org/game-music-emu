@@ -62,6 +62,13 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -W -Wextra)
 endif()
 
+# c++ tweaks
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
+elseif(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
+endif()
+
 # Check for GCC/Clang "visibility" support.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND ENABLE_UBSAN)
     # GCC needs -static-libubsan
