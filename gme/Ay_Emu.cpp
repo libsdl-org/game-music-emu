@@ -54,7 +54,9 @@ static byte const* get_data( Ay_Emu::file_t const& file, byte const* ptr, int mi
 {
 	long pos = ptr - (byte const*) file.header;
 	long file_size = file.end - (byte const*) file.header;
-	assert( (unsigned long) pos <= (unsigned long) file_size - 2 );
+	// assert( (unsigned long) pos <= (unsigned long) file_size - 2 );
+	if ( (unsigned long) pos > (unsigned long) file_size - 2 )
+		return 0; // Don't read farther than buffer allows
 	int offset = (int16_t) get_be16( ptr );
 	if ( !offset || uint32_t (pos + offset) > uint32_t (file_size - min_size) )
 		return 0;
